@@ -21,7 +21,7 @@ sudo cp target/release/status-page /usr/local/bin/
 
 - Create a `systemd` service:
 ```bash
-sudo nano /etc/systemd/system/status-page.service
+sudo vim /etc/systemd/system/status-page.service
 ```
 
 With the following content:
