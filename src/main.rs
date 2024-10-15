@@ -3,6 +3,8 @@ extern crate rocket;
 use rocket::response::content::RawHtml;
 use rocket::serde::json::Json;
 use rocket::serde::Serialize;
+use std::fs::File;
+use std::io::{self, Read};
 use sysinfo::System;
 
 #[derive(Serialize)]
@@ -12,6 +14,17 @@ struct RaspberryPiData {
     used_memory: u64,
     total_swap: u64,
     used_swap: u64,
+    cpu_temperature: f32,
+}
+
+fn read_cpu_temperature() -> io::Result<f32> {
+    let mut file = File::open("/sys/class/thermal/thermal_zone0/temp")?;
+    let mut contents = String::new();
+    file.read_to_string(&mut contents)?;
+
+    // Convert the temperature from millidegrees Celsius to degrees Celsius
+    let temp: f32 = contents.trim().parse::<f32>().unwrap_or(0.0) / 1000.0;
+    Ok(temp)
 }
 
 #[get("/")]
@@ -44,6 +57,7 @@ fn index() -> RawHtml<String> {
                     document.getElementById('used-memory').innerText = data.used_memory + ' KB';
                     document.getElementById('total-swap').innerText = data.total_swap + ' KB';
                     document.getElementById('used-swap').innerText = data.used_swap + ' KB';
+                    document.getElementById('cpu-temperature').innerText = data.cpu_temperature.toFixed(2) + ' °C';
                 }
 
                 // Fetch data every 1 second
@@ -65,6 +79,9 @@ fn index() -> RawHtml<String> {
                 <p>Total Swap: <span id="total-swap">Loading...</span></p>
                 <p>Used Swap: <span id="used-swap">Loading...</span></p>
             </div>
+            <div class="data">
+                <h2>CPU Temperature: <span id="cpu-temperature">Loading...</span></h2>
+            </div>
         </body>
         </html>
     "#;
@@ -81,12 +98,16 @@ fn pi_data() -> Json<RaspberryPiData> {
     let cpu_usage: f32 =
         sys.cpus().iter().map(|cpu| cpu.cpu_usage()).sum::<f32>() / sys.cpus().len() as f32;
 
+    // Read CPU temperature
+    let cpu_temperature = read_cpu_temperature().unwrap_or(0.0);
+
     Json(RaspberryPiData {
         cpu_usage,
         total_memory: sys.total_memory(),
         used_memory: sys.used_memory(),
         total_swap: sys.total_swap(),
         used_swap: sys.used_swap(),
+        cpu_temperature, // Include CPU temperature in the response
     })
 }
 
