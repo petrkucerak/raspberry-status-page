@@ -49,7 +49,7 @@ fn index() -> RawHtml<String> {
             </style>
             <script>
                 async function fetchPiData() {
-                    const response = await fetch('/pi-data');
+                    const response = await fetch('/status/pi-data');
                     const data = await response.json();
 
                     document.getElementById('cpu-usage').innerText = data.cpu_usage.toFixed(2) + '%';
@@ -113,5 +113,5 @@ fn pi_data() -> Json<RaspberryPiData> {
 
 #[launch]
 fn rocket() -> _ {
-    rocket::build().mount("/", routes![index, pi_data])
+    rocket::build().mount("/status", routes![index, pi_data])
 }
