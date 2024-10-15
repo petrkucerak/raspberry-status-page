@@ -1,10 +1,12 @@
 #[macro_use]
 extern crate rocket;
+use rocket::fs::NamedFile;
 use rocket::response::content::RawHtml;
 use rocket::serde::json::Json;
 use rocket::serde::Serialize;
 use std::fs::File;
 use std::io::{self, Read};
+use std::path::PathBuf;
 use sysinfo::System;
 
 #[derive(Serialize)]
@@ -36,6 +38,7 @@ fn index() -> RawHtml<String> {
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <title>Raspberry Pi Info</title>
+            <link rel="icon" href="/status/favicon.ico" type="image/x-icon">
             <style>
                 body {
                     font-family: Arial, sans-serif;
@@ -111,7 +114,15 @@ fn pi_data() -> Json<RaspberryPiData> {
     })
 }
 
+#[get("/favicon.ico")]
+async fn favicon() -> Option<NamedFile> {
+    NamedFile::open(PathBuf::from("../static/favicon.ico"))
+        .await
+        .ok()
+}
+
 #[launch]
 fn rocket() -> _ {
-    rocket::build().mount("/status", routes![index, pi_data])
+    rocket::build()
+        .mount("/status", routes![index, pi_data, favicon])
 }
