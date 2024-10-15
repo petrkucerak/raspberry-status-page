@@ -7,4 +7,6 @@
 cargo update
 cargo run
 cargo build --release
+
+tmux new-session -A -s SATUS-PAGE # for testing prupose
 ```
