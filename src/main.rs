@@ -21,6 +21,7 @@ struct RaspberryPiData {
     used_swap: u64,
     used_swap_size: String,
     cpu_temperature: f32,
+    uptime: String,
 }
 
 fn read_cpu_temperature() -> io::Result<f32> {
@@ -42,6 +43,30 @@ fn formate_memory(value: u64) -> (u64, String) {
         (value / 1000000, "MB".to_string())
     };
     result
+}
+
+fn formate_time(value: u64) -> String {
+    let days = value / 86400;
+    let hours = (value % 86400) / 3600;
+    let minutes = (value % 3600) / 60;
+    let seconds = value % 60;
+
+    let mut parts = Vec::new();
+
+    if days > 0 {
+        parts.push(format!("{} days", days));
+    }
+    if hours > 0 {
+        parts.push(format!("{} hours", hours));
+    }
+    if minutes > 0 {
+        parts.push(format!("{} minutes", minutes));
+    }
+    if seconds > 0 {
+        parts.push(format!("{} seconds", seconds));
+    }
+
+    parts.join(", ")
 }
 
 #[get("/")]
@@ -70,12 +95,13 @@ fn index() -> RawHtml<String> {
                     const response = await fetch('/status/pi-data');
                     const data = await response.json();
 
-                    document.getElementById('cpu-usage').innerText = data.cpu_usage.toFixed(3) + '%';
+                    document.getElementById('cpu-usage').innerText = data.cpu_usage.toFixed(2) + '%';
+                    document.getElementById('cpu-temperature').innerText = data.cpu_temperature.toFixed(2) + ' °C';
+                    document.getElementById('uptime').innerText = data.uptime;
                     document.getElementById('total-memory').innerText = data.total_memory + ' ' + data.total_memory_size;
                     document.getElementById('used-memory').innerText = data.used_memory + ' ' + data.used_memory_size;
                     document.getElementById('total-swap').innerText = data.total_swap + ' ' + data.total_swap_size;
                     document.getElementById('used-swap').innerText = data.used_swap + ' ' + data.used_swap_size;
-                    document.getElementById('cpu-temperature').innerText = data.cpu_temperature.toFixed(3) + ' °C';
                 }
 
                 // Fetch data every 1 second
@@ -88,7 +114,10 @@ fn index() -> RawHtml<String> {
         <body>
             <h1>Raspberry Pi System Information</h1>
             <div class="data">
-                <h2>CPU Usage: <span id="cpu-usage">Loading...</span></h2>
+                <h2>CPU Information</h2>
+                <p>Uptime: <span id="uptime">Loading...</span></p>
+                <p>CPU Usage: <span id="cpu-usage">Loading...</span></p>
+                <p>CPU Temperature: <span id="cpu-temperature">Loading...</span></p>
             </div>
             <div class="data">
                 <h2>Memory Information</h2>
@@ -96,9 +125,6 @@ fn index() -> RawHtml<String> {
                 <p>Used Memory: <span id="used-memory">Loading...</span></p>
                 <p>Total Swap: <span id="total-swap">Loading...</span></p>
                 <p>Used Swap: <span id="used-swap">Loading...</span></p>
-            </div>
-            <div class="data">
-                <h2>CPU Temperature: <span id="cpu-temperature">Loading...</span></h2>
             </div>
         </body>
         </html>
@@ -131,6 +157,7 @@ fn pi_data() -> Json<RaspberryPiData> {
         used_swap: used_swap,
         used_swap_size: used_swap_size,
         cpu_temperature, // Include CPU temperature in the response
+        uptime: formate_time(System::uptime()),
     })
 }
 
