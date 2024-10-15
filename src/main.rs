@@ -13,9 +13,13 @@ use sysinfo::System;
 struct RaspberryPiData {
     cpu_usage: f32,
     total_memory: u64,
+    total_memory_size: String,
     used_memory: u64,
+    used_memory_size: String,
     total_swap: u64,
+    total_swap_size: String,
     used_swap: u64,
+    used_swap_size: String,
     cpu_temperature: f32,
 }
 
@@ -27,6 +31,17 @@ fn read_cpu_temperature() -> io::Result<f32> {
     // Convert the temperature from millidegrees Celsius to degrees Celsius
     let temp: f32 = contents.trim().parse::<f32>().unwrap_or(0.0) / 1000.0;
     Ok(temp)
+}
+
+fn formate_memory(value: u64) -> (u64, String) {
+    let result = if value < 1000 {
+        (value, "B".to_string())
+    } else if value < 1000000 {
+        (value / 1000, "KB".to_string())
+    } else {
+        (value / 1000000, "MB".to_string())
+    };
+    result
 }
 
 #[get("/")]
@@ -55,12 +70,12 @@ fn index() -> RawHtml<String> {
                     const response = await fetch('/status/pi-data');
                     const data = await response.json();
 
-                    document.getElementById('cpu-usage').innerText = data.cpu_usage.toFixed(2) + '%';
-                    document.getElementById('total-memory').innerText = data.total_memory + ' KB';
-                    document.getElementById('used-memory').innerText = data.used_memory + ' KB';
-                    document.getElementById('total-swap').innerText = data.total_swap + ' KB';
-                    document.getElementById('used-swap').innerText = data.used_swap + ' KB';
-                    document.getElementById('cpu-temperature').innerText = data.cpu_temperature.toFixed(2) + ' °C';
+                    document.getElementById('cpu-usage').innerText = data.cpu_usage.toFixed(3) + '%';
+                    document.getElementById('total-memory').innerText = data.total_memory + ' ' + data.total_memory_size;
+                    document.getElementById('used-memory').innerText = data.used_memory + ' ' + data.used_memory_size;
+                    document.getElementById('total-swap').innerText = data.total_swap + ' ' + data.total_swap_size;
+                    document.getElementById('used-swap').innerText = data.used_swap + ' ' + data.used_swap_size;
+                    document.getElementById('cpu-temperature').innerText = data.cpu_temperature.toFixed(3) + ' °C';
                 }
 
                 // Fetch data every 1 second
@@ -97,19 +112,24 @@ fn pi_data() -> Json<RaspberryPiData> {
     let mut sys = System::new_all();
     sys.refresh_all();
 
-    // Calculate average CPU usage across all processors
-    let cpu_usage: f32 =
-        sys.cpus().iter().map(|cpu| cpu.cpu_usage()).sum::<f32>() / sys.cpus().len() as f32;
-
     // Read CPU temperature
     let cpu_temperature = read_cpu_temperature().unwrap_or(0.0);
 
+    let (total_memory, total_memory_size) = formate_memory(sys.total_memory());
+    let (used_memory, used_memory_size) = formate_memory(sys.used_memory());
+    let (total_swap, total_swap_size) = formate_memory(sys.total_swap());
+    let (used_swap, used_swap_size) = formate_memory(sys.used_swap());
+
     Json(RaspberryPiData {
-        cpu_usage,
-        total_memory: sys.total_memory(),
-        used_memory: sys.used_memory(),
-        total_swap: sys.total_swap(),
-        used_swap: sys.used_swap(),
+        cpu_usage: sys.global_cpu_usage(),
+        total_memory: total_memory,
+        total_memory_size: total_memory_size,
+        used_memory: used_memory,
+        used_memory_size: used_memory_size,
+        total_swap: total_swap,
+        total_swap_size: total_swap_size,
+        used_swap: used_swap,
+        used_swap_size: used_swap_size,
         cpu_temperature, // Include CPU temperature in the response
     })
 }
@@ -123,6 +143,5 @@ async fn favicon() -> Option<NamedFile> {
 
 #[launch]
 fn rocket() -> _ {
-    rocket::build()
-        .mount("/status", routes![index, pi_data, favicon])
+    rocket::build().mount("/status", routes![index, pi_data, favicon])
 }
